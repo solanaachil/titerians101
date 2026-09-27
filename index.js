@@ -58,16 +58,16 @@ const slashCommands = [
     .setDescription('See who mentioned you while you were AFK'),
   new SlashCommandBuilder()
     .setName('tambay')
-    .setDescription('DM all server members inviting them to a channel (Admins only)')
+    .setDescription('DM all server members (Admins only)')
     .addStringOption((opt) =>
       opt.setName('message').setDescription('The message to DM everyone').setRequired(true)
     )
     .addChannelOption((opt) =>
       opt
         .setName('channel')
-        .setDescription('The channel to invite them to')
+        .setDescription('Optional: a channel to mention/invite them to')
         .addChannelTypes(ChannelType.GuildText)
-        .setRequired(true)
+        .setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map((cmd) => cmd.toJSON());
@@ -271,8 +271,8 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     const dmText = interaction.options.getString('message');
-    const targetChannel = interaction.options.getChannel('channel');
-    const channelMention = `<#${targetChannel.id}>`;
+    const targetChannel = interaction.options.getChannel('channel'); // optional, may be null
+    const channelMention = targetChannel ? `<#${targetChannel.id}>` : '';
     const guild = interaction.guild;
 
     const startingEmbed = new EmbedBuilder()
@@ -282,6 +282,11 @@ client.on('interactionCreate', async (interaction) => {
       .setFooter({ text: config.tambay.embedFooter });
 
     await interaction.reply({ embeds: [startingEmbed] });
+    // Fetch the actual message and edit THAT from here on instead of interaction.editReply().
+    // interaction.editReply() relies on a webhook token that expires after 15 minutes —
+    // a big member list can easily take longer than that to finish. Editing the message
+    // object directly uses the bot's own token, which never expires mid-run.
+    const progressMessage = await interaction.fetchReply();
 
     const members = await guild.members.fetch();
     const humanMembers = [...members.values()].filter((m) => !m.user.bot);
@@ -299,15 +304,8 @@ client.on('interactionCreate', async (interaction) => {
             .replaceAll('{channel}', channelMention)
             .replaceAll('{server}', guild.name);
 
-          const dmEmbed = new EmbedBuilder()
-            .setColor(config.colors.tambay)
-            .setAuthor({ name: config.tambay.embedTitle })
-            .setThumbnail(guild.iconURL() || null)
-            .setDescription(personalizedText)
-            .setFooter({ text: config.tambay.embedFooter })
-            .setTimestamp();
-
-          return member.send({ embeds: [dmEmbed] });
+          // Plain text DM — no embed, just the message as typed.
+          return member.send(personalizedText);
         })
       );
 
@@ -319,7 +317,9 @@ client.on('interactionCreate', async (interaction) => {
         .setDescription(`Sending... **${sent + failed}/${humanMembers.length}** processed`)
         .setFooter({ text: config.tambay.embedFooter });
 
-      await interaction.editReply({ embeds: [progressEmbed] }).catch(() => {});
+      await progressMessage.edit({ embeds: [progressEmbed] }).catch((err) => {
+        console.error('Progress edit failed:', err.message);
+      });
 
       if (i + TAMBAY_BATCH_SIZE < humanMembers.length) {
         await new Promise((resolve) => setTimeout(resolve, TAMBAY_BATCH_DELAY_MS));
@@ -333,7 +333,9 @@ client.on('interactionCreate', async (interaction) => {
       .setFooter({ text: config.tambay.embedFooter })
       .setTimestamp();
 
-    await interaction.editReply({ embeds: [doneEmbed] }).catch(() => {});
+    await progressMessage.edit({ embeds: [doneEmbed] }).catch((err) => {
+      console.error('Final edit failed:', err.message);
+    });
     return;
   }
 });
