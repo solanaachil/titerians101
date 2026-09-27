@@ -39,12 +39,16 @@ Slash commands show up within seconds since `GUILD_ID` is set. Every time you re
 | `$afk [reason]` / `/afk [reason]` | everyone | Sets you AFK. Shows "💤 **you** is AFK → *reason*". |
 | `$afkmentions` / `/afkmentions` | everyone | Shows your last 10 away mentions with jump links. |
 | (any message) | everyone | If you were AFK, posts "Welcome back" with how long you were away. |
-| `/tambay message:"..." channel:#general` | **Administrators only** | DMs every human member, 10 at a time, with a live-updating progress embed, then a final sent/failed count. Non-admins get a "🚫 Admins only" reply only they can see. |
+| `/tambay message:"..."` (channel optional) | **Administrators only** | Sends every human member a plain-text DM (no embed), 10 at a time, with a live-updating progress embed posted in the channel where you ran the command, then a final sent/failed count. Non-admins get a "🚫 Admins only" reply only they can see. |
+
+`channel` is optional — leave it blank to just send the message with no channel attached. If you fill it in, `{channel}` in your message becomes a clickable mention of it.
 
 In the `message` text you can use:
 - `{user}` → the member's username
-- `{channel}` → a clickable mention of the channel you picked
+- `{channel}` → a clickable mention of the channel you picked (blank if you didn't pick one)
 - `{server}` → your server's name
+
+You can also paste any link (invite, channel link, whatever) straight into the message text — it's just plain text, so anything you type goes out as-is.
 
 ## Customizing the look — edit `config.json`
 
