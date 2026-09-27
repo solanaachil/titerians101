@@ -309,7 +309,15 @@ client.on('interactionCreate', async (interaction) => {
         })
       );
 
-      results.forEach((r) => (r.status === 'fulfilled' ? sent++ : failed++));
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') {
+          sent++;
+        } else {
+          failed++;
+          // Log the real reason so it shows up in Railway logs instead of just a count.
+          console.error('DM failed:', r.reason?.message || r.reason);
+        }
+      });
 
       const progressEmbed = new EmbedBuilder()
         .setColor(config.colors.tambay)
